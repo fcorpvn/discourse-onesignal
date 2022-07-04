@@ -6,6 +6,7 @@ export default {
   initialize() {
     withPluginApi("0.8.31", (api) => {
       api.modifyClass("component:d-modal", {
+        pluginId: "discourse-onesignal",
         init() {
           this._super(...arguments);
 
