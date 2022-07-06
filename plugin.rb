@@ -35,6 +35,7 @@ after_initialize do
 
     if user.onesignal_subscriptions.exists? || clients.length > 0
       Jobs.enqueue(:onesignal_pushnotification, payload: payload, username: user.username)
+      Rails.logger.info('OneSignal enqueue onesignal_pushnotification success')
     end
   end
 
