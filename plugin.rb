@@ -35,7 +35,6 @@ after_initialize do
 
     if user.onesignal_subscriptions.exists? || clients.length > 0
       Jobs.enqueue(:onesignal_pushnotification, payload: payload, username: user.username)
-      Rails.logger.info('OneSignal enqueue onesignal_pushnotification success')
     end
   end
 
@@ -62,7 +61,7 @@ after_initialize do
 
         request = Net::HTTP::Post.new(uri.path,
             'Content-Type'  => 'application/json;charset=utf-8',
-            'Authorization' => "Basic #{SiteSetting.onesignal_rest_api_key}")
+            'Authorization' => "Basic YThjMGJhODctOTUzNC00OWQxLThiODAtZDY3N2QwNTA3OGMy")
         request.body = params.as_json.to_json
         response = http.request(request)
 
