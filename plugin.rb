@@ -67,7 +67,7 @@ after_initialize do
 
         case response
         when Net::HTTPSuccess then
-          Rails.logger.info("Push notification sent via OneSignal to #{args['username']}.")
+          Rails.logger.warn("Push notification sent via OneSignal to #{args['username']}.")
         else
           Rails.logger.error("OneSignal error when sending a push notification")
           Rails.logger.error("#{request.to_yaml}")
