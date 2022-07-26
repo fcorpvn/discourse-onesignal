@@ -47,7 +47,7 @@ after_initialize do
           "app_id" => SiteSetting.onesignal_app_id,
           "contents" => {"en" => "#{payload[:username]}: #{payload[:excerpt]}"},
           "headings" => {"en" => payload[:topic_title]},
-          "data" => {"discourse_url" => payload[:post_url]},
+          "data" => {"discourse_url" => payload[:post_url], "type" => payload[:notification_type]},
           "ios_badgeType" => "Increase",
           "ios_badgeCount" => "1",
           "filters" => [
