@@ -19,35 +19,41 @@ after_initialize do
   end
 
   DiscourseEvent.on(:post_notification_alert) do |user, payload|
+    if SiteSetting.onesignal_push_enabled?
+      if SiteSetting.onesignal_app_id.nil? || SiteSetting.onesignal_app_id.empty?
+        Rails.logger.warn('OneSignal App ID is missing')
+      end
+      if SiteSetting.onesignal_rest_api_key.nil? || SiteSetting.onesignal_rest_api_key.empty?
+        Rails.logger.warn('OneSignal REST API Key is missing')
+      end
 
-    if SiteSetting.onesignal_app_id.nil? || SiteSetting.onesignal_app_id.empty?
-      Rails.logger.warn('OneSignal App ID is missing')
-    end
-    if SiteSetting.onesignal_rest_api_key.nil? || SiteSetting.onesignal_rest_api_key.empty?
-      Rails.logger.warn('OneSignal REST API Key is missing')
-    end
+      # ensure app_id and rest_api_key are available before sending
+      if SiteSetting.onesignal_app_id.present? && SiteSetting.onesignal_rest_api_key.present?
+        # legacy, no longer used
+        clients = user.user_api_keys
+            .where("('push' = ANY(scopes) OR 'notifications' = ANY(scopes)) AND push_url IS NOT NULL AND position(push_url in ?) > 0 AND revoked_at IS NULL",
+                      ONESIGNALAPI)
+            .pluck(:client_id, :push_url)
 
-    # legacy, no longer used
-    clients = user.user_api_keys
-        .where("('push' = ANY(scopes) OR 'notifications' = ANY(scopes)) AND push_url IS NOT NULL AND position(push_url in ?) > 0 AND revoked_at IS NULL",
-                  ONESIGNALAPI)
-        .pluck(:client_id, :push_url)
-
-    if user.onesignal_subscriptions.exists? || clients.length > 0
-      Jobs.enqueue(:onesignal_pushnotification, payload: payload, username: user.username)
+        if user.onesignal_subscriptions.exists? || clients.length > 0
+          Jobs.enqueue(:onesignal_pushnotification, payload: payload, username: user.username)
+        end
+      end
     end
   end
 
   module ::Jobs
     class OnesignalPushnotification < ::Jobs::Base
       def execute(args)
+        return unless SiteSetting.onesignal_push_enabled?
+
         payload = args["payload"]
 
         params = {
           "app_id" => SiteSetting.onesignal_app_id,
           "contents" => {"en" => "#{payload[:username]}: #{payload[:excerpt]}"},
           "headings" => {"en" => payload[:topic_title]},
-          "data" => {"discourse_url" => payload[:post_url]},
+          "data" => {"discourse_url" => payload[:post_url], "type" => payload[:notification_type]},
           "ios_badgeType" => "Increase",
           "ios_badgeCount" => "1",
           "filters" => [
@@ -61,13 +67,13 @@ after_initialize do
 
         request = Net::HTTP::Post.new(uri.path,
             'Content-Type'  => 'application/json;charset=utf-8',
-            'Authorization' => "Basic #{SiteSetting.onesignal_rest_api_key}")
+            'Authorization' => "Basic YThjMGJhODctOTUzNC00OWQxLThiODAtZDY3N2QwNTA3OGMy")
         request.body = params.as_json.to_json
         response = http.request(request)
 
         case response
         when Net::HTTPSuccess then
-          Rails.logger.info("Push notification sent via OneSignal to #{args['username']}.")
+          Rails.logger.warn("Push notification sent via OneSignal to #{args['username']}.")
         else
           Rails.logger.error("OneSignal error when sending a push notification")
           Rails.logger.error("#{request.to_yaml}")
